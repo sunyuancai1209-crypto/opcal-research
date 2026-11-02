@@ -1,37 +1,19 @@
-# 工作点标定评测库 opcal
+# opcal-research
 
-研究工具0.1.2，MIT许可，只需NumPy。实现通用统计评测，不包含异常检测器、预训练权重或正式共形保证；不将标准统计方法冒称算法创新。代码在本仓库公开，尚未上传PyPI。
+**Object-aware operating-point evaluation for anomaly score maps.**
 
-安装：在仓库根目录执行 `python -m pip install .`。不要假设PyPI已有本项目同名包。
+opcal-research is a NumPy-based research tool for evaluating calibration thresholds, pixel false-positive rates, pooled average precision, and grouped resampling. It makes calibration/evaluation identities, sampling units, pixel denominators, and approximation errors explicit.
 
-## 输入与运行
+- Python 3.10+; NumPy is the only runtime dependency.
+- License: MIT.
+- Software creators: ZiKai Zhou and SunYuan Cai.
+- Archived software version 0.1.2: [10.5281/zenodo.23878739](https://doi.org/10.5281/zenodo.23878739).
 
-Python API通过 `from opcal import calibrate, fpr_report, pooling_report, grouped_ap_bootstrap, source_diagnostics` 使用。参数/输出如下：
+The DOI identifies the software release. Benchmark datasets, pretrained weights, and experimental score caches are not included in the archive.
 
-- `calibrate(normal_scores, independent_unit=..., calibration_ids=..., evaluation_ids=..., q=.99)`：N×H×W正常标定评分，显式角色身份隔离；返回线性经验分位阈值。对象多图可以同ID，件数按唯一ID计，像素仍按池化评分计。对象样本量与像素数不等同。
-- `fpr_report(scores, masks, normal_images, threshold)`：同形二元缺陷掩膜、每图正常标记，输出正常整图像素FPR、全部负像素FPR及缺陷像素召回；含命中数与分母。使用严格 `score > threshold`。零分母返回None。
-- `pooling_report(scores, masks, edges)`：检查逐图直方图可加性；报告精确池化AP、分箱AP、近似误差及被裁到首尾箱的像素数。箱网格由调用方提供；建议仅用标定数据冻结，不能看测试标签选箱。
-- `grouped_ap_bootstrap(scores_a, scores_b, masks, independent_unit=..., object_ids=..., edges=..., repeats=2000, seed=0)`：配对对象/图像成组、正常/含缺陷组分层bootstrap，返回a减b的池化AP差和分箱百分位近似区间。一个对象多图始终同进同出；不是跨条件AP宏平均，也不自动推类别泛化。必须另看分箱精确误差，不能把近似区间当精确值。
-- `source_diagnostics(source_fpr, target_fpr)`：两组同形“参考×抽样次数”的已实现FPR矩阵。输出V1中心化p90、V2配对差中位、V3参考中位全距和描述性G1。调用方负责配对意义与角色/来源定义；不是因果或正交方差分解，零波动基准必须单列解释。
+## Install and run the example
 
-采样单位必须显式为`object`或`image`，拒绝`pixel`；object模式要求ID。image模式不能用重复ID伪装独立图。声明仅能检查接口一致性，不能核验实际物理独立/批次关系。不同对象ID不必然意味着独立物理工件。
-
-命令行：`python -m opcal 输入.npz --output 新报告.json --unit object`。
-
-NPZ必须包含：calibration_scores、calibration_ids、scores、masks、normal_images、object_ids。身份用非object dtype字符串，评分图N×H×W，normal_images是二元N向量。标定图被调用方声明为正常；工具不读取图片鉴定标签真伪。输出文件必须不存在，防止覆盖。
-
-`examples/ten_minute.py`可生成确定性教学NPZ，并输出JSON；它是合成接口示例。真实配对光照研究数据的独立归档地址为【待补充】。
-
-## 限制与出处
-
-经验q99不等于带有限样本秩修正的split conformal；空间相关像素不提供独立样本保证。所有区间依赖指定分组与固定评分，无法自动修复分布偏移。几次重抽不能证明像素级样本量下限。工具打包不替代文献查新或独立验证。
-
-本项目统计实现与测试自写，标准知识参考：Tibshirani等《Conformal Prediction Under Covariate Shift》(NeurIPS2019)，https://papers.neurips.cc/paper_files/paper/2019/hash/8fb21ee7a2207526da55a679f0332de2-Abstract.html 。代码未复制该文或网络异常检测算法实现。使用本工具的研究应报告数据版本、支持/标定/评价身份、独立单元、分母、阈值不等号、箱网格、种子和不通过结果。
-
-
-## Third-party reproduction in approximately ten minutes
-
-Python 3.10+ is required. From a clean clone:
+From a clone or downloaded source directory:
 
 ```text
 python -m venv .venv
@@ -41,6 +23,98 @@ python examples/ten_minute.py --output example_output
 python -m opcal example_output/input.npz --output example_output/cli_report.json --unit object
 ```
 
-Both reports use the same calibration threshold, FPR denominators and pooled AP. The example verifies additive histogram counts. These are generated interface data, not experimental performance results. No bootstrap experiment is run by this quick start. Optional developer tests: `python -m pip install ".[test]"` then `python -m pytest tests -q`.
+The Python API and command-line reports use the same calibration threshold, pixel denominators, and pooled AP. The example also checks additive histogram counts. Its arrays are generated interface data, rather than benchmark results. The quick start does not run bootstrap experiments.
 
-For a real detector, replace the NPZ arrays with separate normal calibration maps and evaluation maps/masks. Supply genuine grouping IDs; keep calibration and evaluation identities disjoint. Public experiment archive: 【待补充】.
+Use a new output directory for each example run. The CLI refuses to overwrite an existing report. This project has not been published on PyPI; install from the source directory.
+
+Optional developer tests:
+
+```text
+python -m pip install ".[test]"
+python -m pytest tests -q
+```
+
+## Inputs and Python API
+
+```python
+from opcal import (
+    calibrate,
+    fpr_report,
+    pooling_report,
+    grouped_ap_bootstrap,
+    source_diagnostics,
+)
+```
+
+Score maps have shape `N x H x W`. Supply separate normal calibration maps and evaluation maps, binary defect masks, normal-image flags, and genuine grouping identifiers. Keep calibration and evaluation identities disjoint.
+
+### Calibration
+
+`calibrate(normal_scores, independent_unit=..., calibration_ids=..., evaluation_ids=..., q=.99)`
+
+Computes a pooled linear empirical quantile from normal calibration scores. It reports the threshold, image count, unique-unit count, and decision rule. Multiple maps of one object may share an identifier; the object count uses unique identifiers, while the quantile still pools scores from the supplied maps.
+
+### Pixel operating point
+
+`fpr_report(scores, masks, normal_images, threshold)`
+
+Reports hit counts and denominators for:
+
+- Pixel FPR over complete normal images.
+- Pixel FPR over all non-defect pixels, including background pixels in anomalous images.
+- Defect-pixel recall.
+
+Decisions use the strict rule `score > threshold`. A zero denominator produces Python `None` (JSON `null`). Pixel FPR is distinct from image rejection rate.
+
+### Pooled AP and approximation checks
+
+`pooling_report(scores, masks, edges)`
+
+Checks additive per-image histogram counts and reports exact pooled AP, binned pooled AP, approximation error, and counts clipped to the outer bins. Bin edges are caller-supplied; freeze them using calibration data, without selecting them against evaluation labels.
+
+### Grouped comparison
+
+`grouped_ap_bootstrap(scores_a, scores_b, masks, independent_unit=..., object_ids=..., edges=..., repeats=2000, seed=0)`
+
+Returns the paired difference in pooled AP (A minus B) and a binned percentile interval. Resampling is stratified by normal/anomalous status. Maps sharing an object identifier are resampled together. The result is pooled AP rather than a macro-average of condition-level AP. Inspect the exact-versus-binned error when interpreting the approximate interval.
+
+### Descriptive source diagnostics
+
+`source_diagnostics(source_fpr, target_fpr)`
+
+Accepts paired `reference x draw` FPR matrices and reports centered p90 fluctuation (V1), the median paired source contrast (V2), the range of reference medians (V3), and a descriptive G1 flag. The caller establishes pairing and source definitions. These outputs are not a causal or orthogonal variance decomposition. Treat zero-fluctuation full-pool endpoints separately.
+
+## Command-line input
+
+```text
+python -m opcal input.npz --output report.json --unit object
+```
+
+The NPZ file must contain:
+
+`calibration_scores`, `calibration_ids`, `scores`, `masks`, `normal_images`, and `object_ids`.
+
+Use string identifiers with a non-object NumPy dtype. Score maps and masks must have compatible shapes; `normal_images` is a binary vector of length `N`. The caller declares calibration inputs to be normal. The tool checks interface consistency, not the correctness of image annotations.
+
+## Interpretation and limits
+
+- Declare the sampling unit as `object` or `image`; `pixel` is rejected. Object mode requires identifiers. Image mode rejects duplicate image identities in calibration.
+- Identifiers do not establish physical independence or acquisition-batch independence. Different IDs alone are insufficient evidence of independent objects.
+- Empirical q99 is not split conformal calibration with a finite-sample rank correction. Spatially correlated pixels do not provide an independent-sample coverage guarantee.
+- Resampling intervals depend on the specified grouping and fixed score maps. They do not automatically correct distribution shift or establish generalization across categories.
+- Repeated subsets of one fixed pool, including a zero-variability full-pool endpoint, do not establish a population sample-size lower bound.
+- The package implements evaluation procedures; it does not include an anomaly detector or pretrained weights. A self-written implementation of standard statistical procedures is distinct from a claim of methodological novelty.
+
+When reporting results, specify data versions, support/calibration/evaluation roles, grouping evidence, denominators, threshold inequality, bin edges, seeds, approximation errors, and outcomes that did not meet the stated criteria.
+
+## Statistical reference
+
+Tibshirani et al., *Conformal Prediction Under Covariate Shift*, NeurIPS 2019. [Official paper](https://papers.neurips.cc/paper_files/paper/2019/hash/8fb21ee7a2207526da55a679f0332de2-Abstract.html).
+
+The numerical implementation and tests were written for this project. The statistical reference is acknowledged as prior work; the code does not reproduce an online anomaly-detector implementation.
+
+## Cite the archived software
+
+Zhou, Z., & Cai, S. (2026). *opcal-research: Object-aware operating-point evaluation for anomaly score maps* (Version 0.1.2) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.23878739
+
+For the archived release, use the version DOI above. The main branch may contain later documentation and metadata corrections.
