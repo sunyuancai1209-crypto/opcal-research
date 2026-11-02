@@ -1,0 +1,21 @@
+{
+  "title": "opcal-research: Object-aware operating-point evaluation for anomaly score maps",
+  "version": "0.1.2",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "mit",
+  "creators": [
+    {
+      "name": "Zhou, ZiKai",
+      "orcid": "0009-0006-1250-1517"
+    }
+  ],
+  "description": "NumPy-based research software for pooled empirical-quantile calibration, pixel false-positive reporting with explicit denominators, pooled average-precision checks, grouped resampling, and descriptive calibration-source diagnostics. Includes source code, tests, a command-line interface and a deterministic usage example.",
+  "keywords": [
+    "anomaly localization",
+    "operating-point evaluation",
+    "calibration",
+    "reproducibility"
+  ],
+  "language": "eng"
+}
